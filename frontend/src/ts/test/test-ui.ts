@@ -19,7 +19,6 @@ import * as ConfigEvent from "../observables/config-event";
 import * as Hangul from "hangul-js";
 import { format } from "date-fns/format";
 import { isAuthenticated } from "../firebase";
-import * as FunboxList from "./funbox/funbox-list";
 import { debounce } from "throttle-debounce";
 import * as ResultWordHighlight from "../elements/result-word-highlight";
 import * as ActivePage from "../states/active-page";
@@ -31,6 +30,8 @@ import {
   TimerOpacity,
 } from "@monkeytype/contracts/schemas/configs";
 import { convertRemToPixels } from "../utils/numbers";
+import { getActiveFunboxes } from "./funbox/list";
+import * as TestState from "./test-state";
 
 async function gethtml2canvas(): Promise<typeof import("html2canvas").default> {
   return (await import("html2canvas")).default;
@@ -186,6 +187,11 @@ ConfigEvent.subscribe((eventKey, eventValue, nosave) => {
     } else {
       scrollTape();
     }
+    updateLiveStatsMargin();
+  }
+
+  if (eventKey === "tapeMargin") {
+    updateLiveStatsMargin();
   }
 
   if (typeof eventValue !== "boolean") return;
@@ -330,9 +336,8 @@ export async function updateHintsPosition(): Promise<void> {
 function getWordHTML(word: string): string {
   let newlineafter = false;
   let retval = `<div class='word'>`;
-  const funbox = FunboxList.get(Config.funbox).find(
-    (f) => f.functions?.getWordHtml
-  );
+
+  const funbox = getActiveFunboxes().find((f) => f.functions?.getWordHtml);
   const chars = Strings.splitIntoCharacters(word);
   for (const char of chars) {
     if (funbox?.functions?.getWordHtml) {
@@ -470,7 +475,7 @@ export async function updateWordsInputPosition(initial = false): Promise<void> {
 
   if (Config.tapeMode !== "off") {
     el.style.top = targetTop + "px";
-    el.style.left = activeWord.offsetLeft + "px";
+    el.style.left = Config.tapeMargin + "%";
     return;
   }
 
@@ -497,12 +502,18 @@ function updateWordsHeight(force = false): void {
   const wordsHeight = $(
     document.querySelector("#words") as Element
   ).outerHeight(true) as number;
-  if (
-    Config.showAllLines &&
-    Config.mode !== "time" &&
-    CustomText.getLimitMode() !== "time" &&
-    CustomText.getLimitValue() !== 0
-  ) {
+
+  const shouldLimitToThreeLines =
+    Config.mode === "time" ||
+    (Config.mode === "custom" && CustomText.getLimitMode() === "time") ||
+    (Config.mode === "custom" &&
+      CustomText.getLimitMode() === "word" &&
+      CustomText.getLimitValue() === 0) ||
+    (Config.mode === "custom" &&
+      CustomText.getLimitMode() === "section" &&
+      CustomText.getLimitValue() === 0);
+
+  if (Config.showAllLines && !shouldLimitToThreeLines) {
     // overflow-x should not be visible in tape mode, but since showAllLines can't
     // be enabled simultaneously with tape mode we don't need to check it's off
     $("#words")
@@ -642,9 +653,9 @@ export async function screenshot(): Promise<void> {
     }
     (document.querySelector("html") as HTMLElement).style.scrollBehavior =
       "smooth";
-    FunboxList.get(Config.funbox).forEach((f) =>
-      f.functions?.applyGlobalCSS?.()
-    );
+    for (const fb of getActiveFunboxes()) {
+      fb.functions?.applyGlobalCSS?.();
+    }
   }
 
   if (!$("#resultReplay").hasClass("hidden")) {
@@ -684,7 +695,9 @@ export async function screenshot(): Promise<void> {
   $(".highlightContainer").addClass("hidden");
   if (revertCookie) $("#cookiesModal").addClass("hidden");
 
-  FunboxList.get(Config.funbox).forEach((f) => f.functions?.clearGlobal?.());
+  for (const fb of getActiveFunboxes()) {
+    fb.functions?.clearGlobal?.();
+  }
 
   (document.querySelector("html") as HTMLElement).style.scrollBehavior = "auto";
   window.scrollTo({
@@ -831,9 +844,7 @@ export async function updateActiveWordLetters(
       }
     }
 
-    const funbox = FunboxList.get(Config.funbox).find(
-      (f) => f.functions?.getWordHtml
-    );
+    const funbox = getActiveFunboxes().find((fb) => fb.functions?.getWordHtml);
 
     const inputChars = Strings.splitIntoCharacters(input);
     const currentWordChars = Strings.splitIntoCharacters(currentWord);
@@ -844,7 +855,7 @@ export async function updateActiveWordLetters(
       let tabChar = "";
       let nlChar = "";
       if (funbox?.functions?.getWordHtml) {
-        const cl = funbox.functions.getWordHtml(currentLetter);
+        const cl = funbox.functions?.getWordHtml(currentLetter);
         if (cl !== "") {
           currentLetter = cl;
         }
@@ -933,6 +944,19 @@ export async function updateActiveWordLetters(
 
 export function scrollTape(): void {
   if (ActivePage.get() !== "test" || resultVisible) return;
+
+  if (!TestState.isActive) {
+    $("#words")
+      .stop(true, false)
+      .animate(
+        {
+          marginLeft: Config.tapeMargin + "%",
+        },
+        SlowTimer.get() ? 0 : 125
+      );
+    return;
+  }
+
   const wordsWrapperWidth = (
     document.querySelector("#wordsWrapper") as HTMLElement
   ).offsetWidth;
@@ -977,7 +1001,9 @@ export function scrollTape(): void {
       }
     }
   }
-  const newMargin = wordsWrapperWidth / 2 - (fullWordsWidth + currentWordWidth);
+
+  const tapeMargin = wordsWrapperWidth * (Config.tapeMargin / 100);
+  const newMargin = tapeMargin - (fullWordsWidth + currentWordWidth);
   if (Config.smoothLineScroll) {
     $("#words")
       .stop(true, false)
@@ -1148,19 +1174,23 @@ async function loadWordsHistory(): Promise<boolean> {
       ) !== null;
     let wordEl = "";
     try {
-      if (input === undefined || input === "")
+      if (input === undefined || input === "") {
         throw new Error("empty input word");
+      }
+
+      const errorClass = input !== word ? "error" : "";
+
       if (corrected !== undefined && corrected !== "") {
         const correctedChar = !containsKorean
           ? corrected
           : Hangul.assemble(corrected.split(""));
-        wordEl = `<div class='word nocursor' burst="${
+        wordEl = `<div class='word nocursor ${errorClass}' burst="${
           TestInput.burstHistory[i]
         }" input="${correctedChar
           .replace(/"/g, "&quot;")
           .replace(/ /g, "_")}">`;
       } else {
-        wordEl = `<div class='word nocursor' burst="${
+        wordEl = `<div class='word nocursor ${errorClass}' burst="${
           TestInput.burstHistory[i]
         }" input="${input.replace(/"/g, "&quot;").replace(/ /g, "_")}">`;
       }
@@ -1448,6 +1478,20 @@ function updateWordsWidth(): void {
     el.removeClass("full-width-padding").addClass("content");
   } else {
     el.removeClass("content").addClass("full-width-padding");
+  }
+}
+
+function updateLiveStatsMargin(): void {
+  if (Config.tapeMode === "off") {
+    $("#liveStatsMini").css({
+      "justify-content": "start",
+      "margin-left": "0.25em",
+    });
+  } else {
+    $("#liveStatsMini").css({
+      "justify-content": "center",
+      "margin-left": Config.tapeMargin + "%",
+    });
   }
 }
 

@@ -504,6 +504,20 @@
         <select></select>
       </div>
     </div>
+    <div class="section" data-config-name="codeUnindentOnBackspace">
+      <div class="groupTitle">
+        <i class="fas fa-code"></i>
+        <span>code unindent on backspace</span>
+      </div>
+      <div class="text">
+        Automatically go back to the previous line when deleting line leading
+        tab characters. Only works in code languages.
+      </div>
+      <div class="buttons">
+        <button data-config-value="false">off</button>
+        <button data-config-value="true">on</button>
+      </div>
+    </div>
     <div class="sectionSpacer"></div>
   </div>
 
@@ -810,6 +824,30 @@
         <button data-config-value="off">off</button>
         <button data-config-value="letter">letter</button>
         <button data-config-value="word">word</button>
+      </div>
+    </div>
+    <div class="section" data-config-name="tapeMargin">
+      <div class="groupTitle">
+        <i class="fas fa-tape"></i>
+        <span>tape margin</span>
+      </div>
+      <div class="text">
+        When in tape mode, set the carets position from the left edge of the
+        typing test as a percentage (for example, 50% centers it).
+      </div>
+      <div class="inputs">
+        <div class="inputAndButton">
+          <input
+            type="number"
+            placeholder="tape margin"
+            class="input"
+            min="10"
+            max="90"
+          />
+          <button class="save no-auto-handle">
+            <i class="fas fa-save fa-fw"></i>
+          </button>
+        </div>
       </div>
     </div>
     <div class="section" data-config-name="smoothLineScroll">

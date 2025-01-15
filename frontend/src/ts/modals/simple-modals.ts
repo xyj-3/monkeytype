@@ -199,6 +199,12 @@ async function reauthenticate(
         status: 0,
         message: "Incorrect password",
       };
+    } else if (typedError.code === "auth/invalid-credential") {
+      return {
+        status: 0,
+        message:
+          "Password is incorrect or your account does not have password authentication enabled.",
+      };
     } else {
       return {
         status: -1,
@@ -983,7 +989,7 @@ list.revokeAllTokens = new SimpleModal({
       initVal: "",
     },
   ],
-  text: "Are you sure you want to this? This will log you out of all devices.",
+  text: "Are you sure you want to do this? This will log you out of all devices.",
   buttonText: "revoke all",
   onlineOnly: true,
   execFn: async (_thisPopup, password): Promise<ExecReturn> => {

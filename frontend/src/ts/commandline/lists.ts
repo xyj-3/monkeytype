@@ -51,6 +51,7 @@ import TimerColorCommands from "./lists/timer-color";
 import TimerOpacityCommands from "./lists/timer-opacity";
 import HighlightModeCommands from "./lists/highlight-mode";
 import TapeModeCommands from "./lists/tape-mode";
+import TapeMarginCommands from "./lists/tape-margin";
 import BritishEnglishCommands from "./lists/british-english";
 import KeymapModeCommands from "./lists/keymap-mode";
 import KeymapStyleCommands from "./lists/keymap-style";
@@ -69,6 +70,7 @@ import ResultScreenCommands from "./lists/result-screen";
 import CustomBackgroundSizeCommands from "./lists/background-size";
 import CustomBackgroundFilterCommands from "./lists/background-filter";
 import AddOrRemoveThemeToFavorite from "./lists/add-or-remove-theme-to-favorites";
+import CodeUnindentOnBackspace from "./lists/code-unindent-on-backspace";
 
 import TagsCommands from "./lists/tags";
 import CustomThemesListCommands from "./lists/custom-themes-list";
@@ -76,7 +78,7 @@ import PresetsCommands from "./lists/presets";
 import LayoutsCommands, {
   update as updateLayoutsCommands,
 } from "./lists/layouts";
-import FunboxCommands, { update as updateFunboxCommands } from "./lists/funbox";
+import FunboxCommands from "./lists/funbox";
 import ThemesCommands, { update as updateThemesCommands } from "./lists/themes";
 import LoadChallengeCommands, {
   update as updateLoadChallengeCommands,
@@ -127,22 +129,6 @@ languagesPromise
   .catch((e: unknown) => {
     console.error(
       Misc.createErrorMessage(e, "Failed to update language commands")
-    );
-  });
-
-const funboxPromise = JSONData.getFunboxList();
-funboxPromise
-  .then((funboxes) => {
-    updateFunboxCommands(funboxes);
-    if (FunboxCommands[0]?.subgroup) {
-      FunboxCommands[0].subgroup.beforeList = (): void => {
-        updateFunboxCommands(funboxes);
-      };
-    }
-  })
-  .catch((e: unknown) => {
-    console.error(
-      Misc.createErrorMessage(e, "Failed to update funbox commands")
     );
   });
 
@@ -264,6 +250,7 @@ export const commands: CommandsSubgroup = {
     ...HideExtraLettersCommands,
     ...LazyModeCommands,
     ...LayoutsCommands,
+    ...CodeUnindentOnBackspace,
 
     //sound
     ...SoundVolumeCommands,
@@ -287,6 +274,7 @@ export const commands: CommandsSubgroup = {
     ...TimerOpacityCommands,
     ...HighlightModeCommands,
     ...TapeModeCommands,
+    ...TapeMarginCommands,
     ...SmoothLineScrollCommands,
     ...ShowAllLinesCommands,
     ...TypingSpeedUnitCommands,
@@ -515,7 +503,6 @@ export async function getList(
   await Promise.allSettled([
     layoutsPromise,
     languagesPromise,
-    funboxPromise,
     fontsPromise,
     themesPromise,
     challengesPromise,
@@ -563,7 +550,6 @@ export async function getSingleSubgroup(): Promise<CommandsSubgroup> {
   await Promise.allSettled([
     layoutsPromise,
     languagesPromise,
-    funboxPromise,
     fontsPromise,
     themesPromise,
     challengesPromise,
